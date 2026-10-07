@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 스마트 보고서 생성기</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-report, #printable-report * { visibility: visible; }
+            #printable-report { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; box-shadow: none !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md">
+                    <i class="fa-solid fa-file-lines text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 leading-tight">SmartReport AI</h1>
+                    <p class="text-xs text-slate-500">제미나이 기반 지능형 보고서 작성 어시스턴트</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="openApiKeyModal()" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition shadow-sm">
+                    <i class="fa-solid fa-key text-amber-500"></i>
+                    <span id="api-key-status-text">API 키 설정</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Step Wizard Bar -->
+    <section class="max-w-5xl mx-auto px-4 w-full mt-8 mb-6">
+        <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <!-- Step 1 -->
+                <div id="step-indicator-1" class="flex flex-col items-center p-3 rounded-xl transition bg-indigo-50 border border-indigo-200 text-indigo-700">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-600 text-white mb-2 shadow">1</div>
+                    <span class="text-xs sm:text-sm font-semibold">목차 및 토대 생성</span>
+                </div>
+                <!-- Step 2 -->
+                <div id="step-indicator-2" class="flex flex-col items-center p-3 rounded-xl transition bg-slate-50 border border-slate-200 text-slate-400">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-slate-200 text-slate-600 mb-2">2</div>
+                    <span class="text-xs sm:text-sm font-semibold">내용 작성 및 검토</span>
+                </div>
+                <!-- Step 3 -->
+                <div id="step-indicator-3" class="flex flex-col items-center p-3 rounded-xl transition bg-slate-50 border border-slate-200 text-slate-400">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-slate-200 text-slate-600 mb-2">3</div>
+                    <span class="text-xs sm:text-sm font-semibold">PDF 보고서 완성</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-4 w-full flex-grow pb-16">
+
+        <!-- STEP 1 VIEW -->
+        <div id="view-step-1" class="space-y-6">
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">1단계: 보고서 목차 및 기본 정보 설정</h2>
+                <p class="text-sm text-slate-600 mb-6">보고서의 주제를 입력하고 필요한 항목(섹션)을 구성해주세요. 제미나이가 이를 바탕으로 전체 토대(뼈대)를 구성해드립니다.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">보고서 주제 / 제목</label>
+                        <input type="text" id="report-title-input" placeholder="예: 2026년 Q3 AI 기술 도입 및 업무 효율성 분석 보고서" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-semibold text-slate-700">보고서 항목 (목차 목록)</label>
+                            <button onclick="addSectionItem()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center space-x-1">
+                                <i class="fa-solid fa-plus"></i> <span>항목 추가</span>
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3">보고서에 들어갔으면 하는 핵심 항목들을 순서대로 적어주세요.</p>
+                        
+                        <div id="sections-container" class="space-y-3">
+                            <div class="flex items-center space-x-2">
+                                <input type="text" value="1. 서론 및 배경" class="section-item-input flex-grow px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+                                <button onclick="removeSectionItem(this)" class="p-2.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" value="2. 주요 현황 및 분석" class="section-item-input flex-grow px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+                                <button onclick="removeSectionItem(this)" class="p-2.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" value="3. 문제점 및 개선 방안" class="section-item-input flex-grow px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+                                <button onclick="removeSectionItem(this)" class="p-2.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" value="4. 결론 및 향후 계획" class="section-item-input flex-grow px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+                                <button onclick="removeSectionItem(this)" class="p-2.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex justify-end">
+                        <button onclick="generateReportFoundation()" id="btn-generate-foundation" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition flex items-center space-x-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>제미나이 토대 생성하기</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Foundation Preview Card (Hidden initially) -->
+            <div id="foundation-result-card" class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 hidden">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-robot text-indigo-600"></i>
+                        <span>제미나이가 생성한 보고서 토대</span>
+                    </h3>
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">생성 완료</span>
+                </div>
+                
+                <div id="foundation-content-display" class="bg-slate-50 p-5 rounded-xl text-slate-700 text-sm leading-relaxed whitespace-pre-line border border-slate-200 mb-6"></div>
+
+                <div class="flex flex-wrap items-center justify-end gap-3">
+                    <button onclick="generateReportFoundation()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition flex items-center space-x-2 text-sm">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>다시 만들기</span>
+                    </button>
+                    <button onclick="proceedToStep2()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition flex items-center space-x-2 text-sm">
+                        <span>내용 입력하기</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2 VIEW -->
+        <div id="view-step-2" class="space-y-6 hidden">
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-6 gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">2단계: 항목별 내용 작성 및 AI 검토</h2>
+                        <p class="text-sm text-slate-600">각 항목별로 상세 내용을 작성하거나 AI의 도움을 받아 내용을 채워보세요.</p>
+                    </div>
+                    <button onclick="aiDraftAllSections()" class="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold rounded-xl border border-amber-200 text-xs transition flex items-center space-x-2 self-start">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>AI 초안 자동 작성</span>
+                    </button>
+                </div>
+
+                <div id="sections-form-container" class="space-y-6">
+                    <!-- Dynamic Section Forms will be injected here -->
+                </div>
+
+                <!-- AI Review Box (Hidden initially) -->
+                <div id="ai-review-container" class="mt-8 p-6 rounded-2xl bg-indigo-50/50 border border-indigo-100 hidden">
+                    <h3 class="text-base font-bold text-indigo-900 mb-3 flex items-center space-x-2">
+                        <i class="fa-solid fa-clipboard-check text-indigo-600"></i>
+                        <span>제미나이 맞춤법 및 표현 검토 피드백</span>
+                    </h3>
+                    <div id="ai-review-text" class="text-sm text-slate-700 leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-indigo-100 shadow-sm"></div>
+                </div>
+
+                <div class="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
+                    <button onclick="switchStep(1)" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition text-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> 이전으로
+                    </button>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="requestAiReview()" id="btn-ai-review" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl transition text-sm flex items-center space-x-2 shadow-sm">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            <span>AI 내용 검토 요청</span>
+                        </button>
+                        <button onclick="proceedToStep3()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition text-sm flex items-center space-x-2">
+                            <span>이대로 보고서 작성하기</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3 VIEW -->
+        <div id="view-step-3" class="space-y-6 hidden">
+            <div class="flex items-center justify-between bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">3단계: 최종 보고서 완성 및 PDF 출력</h2>
+                    <p class="text-sm text-slate-600">완성된 보고서를 확인하고 PDF 파일로 저장하거나 인쇄하세요.</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="switchStep(2)" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition text-sm">
+                        수정하기
+                    </button>
+                    <button onclick="printOrSavePdf()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition text-sm flex items-center space-x-2">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>PDF 저장 / 인쇄</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Printable Report Document -->
+            <div id="printable-report" class="bg-white p-8 sm:p-12 rounded-2xl shadow-lg border border-slate-200 max-w-4xl mx-auto space-y-8">
+                <!-- Report Header -->
+                <div class="border-b-2 border-slate-900 pb-6 text-center space-y-2">
+                    <span class="text-xs uppercase tracking-widest font-bold text-indigo-600">Official Report</span>
+                    <h1 id="final-report-title" class="text-2xl sm:text-3xl font-bold text-slate-900">보고서 제목</h1>
+                    <div class="flex justify-center items-center space-x-4 text-xs text-slate-500 pt-2">
+                        <span>작성일: <span id="final-report-date">2026-09-30</span></span>
+                        <span>•</span>
+                        <span>상태: 최종 승인 완료</span>
+                    </div>
+                </div>
+
+                <!-- Report Body Sections -->
+                <div id="final-report-sections" class="space-y-8 text-slate-700 text-sm leading-relaxed">
+                    <!-- Dynamic sections rendered here -->
+                </div>
+
+                <!-- Report Footer -->
+                <div class="pt-8 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+                    <div>SmartReport AI Generator System</div>
+                    <div>Page 1 of 1</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full mx-4 shadow-xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-key text-amber-500"></i>
+                    <span>Gemini API 키 설정</span>
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">제미나이 API 키를 입력해주세요. 입력된 키는 브라우저 로컬 세션에만 안전하게 유지됩니다.</p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">API Key</label>
+                <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeApiKeyModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl">취소</button>
+                <button onclick="saveApiKey()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-xs w-full text-center space-y-4 shadow-xl">
+            <div class="inline-block animate-spin text-indigo-600 text-3xl">
+                <i class="fa-solid fa-spinner"></i>
+            </div>
+            <p id="loading-text" class="text-sm font-semibold text-slate-700">제미나이가 생각 중입니다...</p>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global App State
+        let currentStep = 1;
+        let apiKey = localStorage.getItem('gemini_custom_api_key') || '';
+        let reportData = {
+            title: '',
+            sections: [] // Array of { title: '', content: '' }
+        };
+        let foundationText = '';
+
+        // Initialize on load
+        window.onload = function() {
+            updateApiKeyStatus();
+            document.getElementById('final-report-date').innerText = new Date().toISOString().split('T')[0];
+        };
+
+        function updateApiKeyStatus() {
+            const statusText = document.getElementById('api-key-status-text');
+            if (apiKey) {
+                statusText.innerText = "API 키 설정됨";
+                statusText.className = "text-emerald-600 font-semibold";
+            } else {
+                statusText.innerText = "API 키 설정 필요";
+                statusText.className = "text-amber-600 font-semibold";
+            }
+        }
+
+        function openApiKeyModal() {
+            document.getElementById('api-key-input').value = apiKey;
+            document.getElementById('api-key-modal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('api-key-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const val = document.getElementById('api-key-input').value.trim();
+            apiKey = val;
+            localStorage.setItem('gemini_custom_api_key', apiKey);
+            updateApiKeyStatus();
+            closeApiKeyModal();
+        }
+
+        function showLoading(text) {
+            document.getElementById('loading-text').innerText = text || "제미나이가 처리 중입니다...";
+            document.getElementById('loading-modal').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-modal').classList.add('hidden');
+        }
+
+        function switchStep(step) {
+            currentStep = step;
+            for (let i = 1; i <= 3; i++) {
+                const view = document.getElementById(`view-step-${i}`);
+                const indicator = document.getElementById(`step-indicator-${i}`);
+                if (i === step) {
+                    view.classList.remove('hidden');
+                    indicator.className = "flex flex-col items-center p-3 rounded-xl transition bg-indigo-50 border border-indigo-200 text-indigo-700";
+                    indicator.querySelector('div').className = "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-600 text-white mb-2 shadow";
+                } else {
+                    view.classList.add('hidden');
+                    indicator.className = "flex flex-col items-center p-3 rounded-xl transition bg-slate-50 border border-slate-200 text-slate-400";
+                    indicator.querySelector('div').className = "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-slate-200 text-slate-600 mb-2";
+                }
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function addSectionItem() {
+            const container = document.getElementById('sections-container');
+            const div = document.createElement('div');
+            div.className = "flex items-center space-x-2";
+            div.innerHTML = `
+                <input type="text" placeholder="새로운 항목 입력" class="section-item-input flex-grow px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500">
+                <button onclick="removeSectionItem(this)" class="p-2.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeSectionItem(btn) {
+            const container = document.getElementById('sections-container');
+            if (container.children.length <= 1) {
+                alert("최소 1개의 항목이 필요합니다.");
+                return;
+            }
+            btn.parentElement.remove();
+        }
+
+        async function callGeminiApi(promptText, systemPrompt = "당신은 전문 보고서 작성 어시스턴트입니다.") {
+            const effectiveApiKey = apiKey || "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${effectiveApiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            let delay = 1000;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        return candidate.content.parts[0].text;
+                    }
+                    throw new Error("Invalid response structure from Gemini API");
+                } catch (err) {
+                    if (attempt === 2) throw err;
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function generateReportFoundation() {
+            const titleInput = document.getElementById('report-title-input').value.trim();
+            if (!titleInput) {
+                alert("보고서 주제나 제목을 입력해주세요.");
+                return;
+            }
+
+            const inputs = document.querySelectorAll('.section-item-input');
+            const sections = Array.from(inputs).map(input => input.value.trim()).filter(Boolean);
+            if (sections.length === 0) {
+                alert("적어도 하나의 항목을 입력해주세요.");
+                return;
+            }
+
+            reportData.title = titleInput;
+            reportData.sections = sections.map(sec => ({ title: sec, content: '' }));
+
+            showLoading("제미나이가 보고서 토대와 개요를 구성 중입니다...");
+            try {
+                const prompt = `보고서 주제: "${reportData.title}"\n작성할 항목 목록:\n${sections.map((s, i) => `${i+1}. ${s}`).join('\n')}\n\n위 항목들을 바탕으로 이 보고서가 다루어야 할 전체적인 토대, 개요, 핵심 방향성 및 각 항목별 가이드라인을 전문적이고 체계적인 어조로 작성해줘.`;
+                
+                const resultText = await callGeminiApi(prompt);
+                foundationText = resultText;
+
+                document.getElementById('foundation-content-display').innerText = resultText;
+                document.getElementById('foundation-result-card').classList.remove('hidden');
+                document.getElementById('foundation-result-card').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.error(error);
+                alert("API 호출 중 오류가 발생했습니다. API 키를 확인해주세요.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function proceedToStep2() {
+            // Build Form for Step 2
+            const container = document.getElementById('sections-form-container');
+            container.innerHTML = '';
+
+            reportData.sections.forEach((sec, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3";
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <label class="block font-bold text-slate-800 text-sm">항목 ${idx + 1}: ${sec.title}</label>
+                        <button onclick="aiDraftSection(${idx})" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 transition">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 이 항목 AI 초안 작성
+                        </button>
+                    </div>
+                    <textarea id="section-content-${idx}" rows="5" placeholder="${sec.title}에 들어갈 상세 내용을 입력하세요..." class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-500 bg-white">${sec.content || ''}</textarea>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('ai-review-container').classList.add('hidden');
+            switchStep(2);
+        }
+
+        async function aiDraftSection(idx) {
+            const secTitle = reportData.sections[idx].title;
+            showLoading(`"${secTitle}" 항목의 초안을 작성 중입니다...`);
+            try {
+                const prompt = `보고서 주제: "${reportData.title}"\n현재 작성할 항목: "${secTitle}"\n\n이 항목에 들어가야 할 전문적이고 구체적인 상세 내용 초안을 마크다운 없이 자연스러운 서술형 텍스트로 3~4문단 분량으로 작성해줘.`;
+                const draft = await callGeminiApi(prompt);
+                document.getElementById(`section-content-${idx}`).value = draft;
+            } catch (err) {
+                console.error(err);
+                alert("초안 작성 실패. API 설정을 확인해주세요.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function aiDraftAllSections() {
+            showLoading("모든 항목의 AI 초안을 작성 중입니다...");
+            try {
+                for (let i = 0; i < reportData.sections.length; i++) {
+                    const secTitle = reportData.sections[i].title;
+                    const prompt = `보고서 주제: "${reportData.title}"\n현재 작성할 항목: "${secTitle}"\n\n이 항목에 들어가야 할 전문적이고 구체적인 상세 내용 초안을 자연스러운 서술형 텍스트로 작성해줘.`;
+                    const draft = await callGeminiApi(prompt);
+                    const textarea = document.getElementById(`section-content-${i}`);
+                    if (textarea) textarea.value = draft;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("일부 초안 작성 중 오류가 발생했습니다.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function requestAiReview() {
+            // Save current inputs
+            reportData.sections.forEach((sec, idx) => {
+                const ta = document.getElementById(`section-content-${idx}`);
+                if (ta) sec.content = ta.value.trim();
+            });
+
+            const allContentSummary = reportData.sections.map(s => `[${s.title}]\n${s.content}`).join('\n\n');
+            if (!allContentSummary.trim()) {
+                alert("검토할 내용이 입력되지 않았습니다.");
+                return;
+            }
+
+            showLoading("제미나이가 전체 보고서의 오타, 어색한 표현, 개선점을 검토 중입니다...");
+            try {
+                const prompt = `보고서 제목: "${reportData.title}"\n\n작성된 내용:\n${allContentSummary}\n\n위 보고서 내용을 철저히 검토하여:\n1. 어색하거나 부자연스러운 표현 수정 제안\n2. 오타나 문맥상 오류 지적\n3. 보고서의 완성도를 높이기 위한 건설적인 피드백과 보완점\n을 친절하고 상세하게 정리해서 알려줘.`;
+                const reviewResult = await callGeminiApi(prompt);
+
+                document.getElementById('ai-review-text').innerText = reviewResult;
+                document.getElementById('ai-review-container').classList.remove('hidden');
+                document.getElementById('ai-review-container').scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                console.error(err);
+                alert("검토 요청 중 오류가 발생했습니다.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function proceedToStep3() {
+            // Save values
+            reportData.sections.forEach((sec, idx) => {
+                const ta = document.getElementById(`section-content-${idx}`);
+                if (ta) sec.content = ta.value.trim();
+            });
+
+            // Render final report view
+            document.getElementById('final-report-title').innerText = reportData.title;
+            const finalSectionsContainer = document.getElementById('final-report-sections');
+            finalSectionsContainer.innerHTML = '';
+
+            reportData.sections.forEach((sec, idx) => {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = "space-y-2 pb-6 border-b border-slate-100 last:border-b-0";
+                sectionDiv.innerHTML = `
+                    <h2 class="text-lg font-bold text-slate-900">${idx + 1}. ${sec.title}</h2>
+                    <p class="text-slate-700 whitespace-pre-line leading-relaxed pl-2">${sec.content || '(내용이 입력되지 않았습니다.)'}</p>
+                `;
+                finalSectionsContainer.appendChild(sectionDiv);
+            });
+
+            switchStep(3);
+        }
+
+        function printOrSavePdf() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
